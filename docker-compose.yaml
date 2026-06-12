@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: user_db
+      POSTGRES_DB: fluxride_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

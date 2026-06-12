@@ -1,2 +1,23 @@
-node_modules
+# Node modules (all services)
+node_modules/
+
+# Env files (all services)
 .env
+.env.*
+
+# Prisma generated files (your case: inside src/generated)
+**/generated/
+
+# Prisma build artifacts (optional safety)
+**/.prisma/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+logs
+*.log
+
+# OS / misc
+.DS_Store
