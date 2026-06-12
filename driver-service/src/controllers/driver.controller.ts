@@ -55,7 +55,7 @@ export const registerDriver = async (req: Request, res: Response) => {
 
 export const getDriverProfile = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const driver = await prisma.driver.findUnique({
       where: { id },
     });
