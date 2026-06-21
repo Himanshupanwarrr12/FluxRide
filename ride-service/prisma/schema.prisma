@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Ride {
+  id            String   @id @default(uuid())
+  riderId       String   // References user-service
+  driverId      String?  // References driver-service
+  pickupLat     Float
+  pickupLng     Float
+  dropLat       Float
+  dropLng       Float
+  pickupAddress String?
+  dropAddress   String?
+  status        RideStatus @default(REQUESTED)
+  fareEstimate  Float?
+  vehicleType   VehicleType
+
+  requestedAt   DateTime @default(now())
+  acceptedAt    DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("rides")
+}
+
+enum VehicleType {
+  CAR
+  BIKE
+  AUTO
+}
+
+enum RideStatus {
+  REQUESTED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
