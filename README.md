@@ -147,11 +147,42 @@ driver-service/
 
 ---
 
-### 3. 🛣️ Ride Service — 🚧 SCAFFOLDED (empty `src/`)
+### 3. 🛣️ Ride Service — ✅ BUILT
 
-**Purpose** (planned): Handle ride requests, match riders with drivers, track ride status.
+**Purpose**: Handle ride requests, match riders with drivers, and track ride status.
 
-**Dependencies installed**: Express, KafkaJS, TypeScript. No Prisma yet.
+**Structure**:
+```
+ride-service/
+├── prisma/schema.prisma
+├── src/
+│   ├── index.ts
+│   ├── lib/prisma.ts         ← Singleton Prisma client
+│   ├── controllers/
+│   │   └── ride.controller.ts
+│   ├── routes/
+│   │   └── ride.routes.ts
+│   └── generated/prisma/
+```
+
+**Database Schema** ([`schema.prisma`](./ride-service/prisma/schema.prisma)):
+
+| Model | Key Fields |
+|---|---|
+| **Ride** | `id` (UUID), `riderId` (ref), `driverId` (ref), `pickupLat`, `pickupLng`, `dropLat`, `dropLng`, `status` (REQUESTED/ACCEPTED/IN_PROGRESS/COMPLETED/CANCELLED), `vehicleType`, timestamps |
+
+**API Endpoints**:
+
+| Method | Route | Handler | Description |
+|---|---|---|---|
+| `POST` | `/api/rides/request` | `requestRide` | Request a new ride |
+| `PATCH` | `/api/rides/:id/accept` | `acceptRide` | Driver accepts ride |
+| `PATCH` | `/api/rides/:id/start` | `startRide` | Driver starts ride |
+| `PATCH` | `/api/rides/:id/complete` | `completeRide` | Complete ride |
+| `PATCH` | `/api/rides/:id/cancel` | `cancelRide` | Cancel ride |
+| `GET` | `/api/rides/:id` | `getRideById` | Get ride details |
+| `GET` | `/api/rides/rider/:riderId` | `getRidesByRider` | Get all rides for a rider |
+| `GET` | `/api/rides/driver/:driverId` | `getRidesByDriver` | Get all rides for a driver |
 
 ---
 
@@ -199,7 +230,7 @@ Both active services use a modern **Prisma + adapter-pg** singleton pattern in t
 |---|---|---|---|---|
 | user-service | ✅ Active | ✅ User + RefreshToken | ✅ 3 endpoints | ❌ Not yet |
 | driver-service | ✅ Active | ✅ Driver | ✅ 2 endpoints | ❌ Not yet |
-| ride-service | 🚧 Scaffolded | ❌ | ❌ | ❌ |
+| ride-service | ✅ Active | ✅ Ride | ✅ 8 endpoints | ❌ Not yet |
 | payment-service | 🚧 Scaffolded | ❌ | ❌ | ❌ |
 | notification-service | 🚧 Scaffolded | ❌ | ❌ | ❌ |
 
@@ -207,12 +238,11 @@ Both active services use a modern **Prisma + adapter-pg** singleton pattern in t
 
 ## What's Left to Build
 
-> **Important:** The 3 remaining services (ride, payment, notification) are empty shells right now — they have `package.json` and `tsconfig.json` but no source code.
+> **Important:** The 2 remaining services (payment, notification) are empty shells right now — they have `package.json` and `tsconfig.json` but no source code.
 
 ### Key missing pieces:
 1. **Kafka producers/consumers** — No service is publishing or consuming Kafka events yet. This is the core of "event-driven" architecture.
-2. **Ride service** — Ride booking, driver matching, status tracking (REQUESTED → ACCEPTED → IN_PROGRESS → COMPLETED).
-3. **Payment service** — Fare calculation, transaction records, payment gateway integration.
+2. **Payment service** — Fare calculation, transaction records, payment gateway integration.
 4. **Notification service** — Kafka consumer that listens for events and sends notifications.
 5. **JWT authentication** — The `RefreshToken` model exists in user-service but JWT generation/verification isn't implemented yet.
 6. **Inter-service communication** — Services currently don't talk to each other (no Kafka events, no API gateway).
