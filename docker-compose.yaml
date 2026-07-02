@@ -33,5 +33,42 @@ services:
     depends_on:
       - zookeeper
 
+  ride-service:
+    build:
+      context: ./ride-service
+    container_name: fluxride-ride-service
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fluxride_rides?schema=public
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: fluxride-payment-service
+    ports:
+      - "3004:3004"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fluxride_db?schema=public
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+
+  notification-service:
+    build:
+      context: ./notification-service
+    container_name: fluxride-notification-service
+    ports:
+      - "3005:3005"
+    environment:
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - kafka
+
 volumes:
   postgres_data:
