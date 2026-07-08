@@ -20,6 +20,8 @@ export const connectKafkaConsumer = async () => {
     console.log("Notification Service connected to Kafka Consumer");
     
     // Subscribe to topics
+    await consumer.subscribe({ topic: "user.events", fromBeginning: true });
+    await consumer.subscribe({ topic: "driver.events", fromBeginning: true });
     await consumer.subscribe({ topic: "ride.events", fromBeginning: true });
     await consumer.subscribe({ topic: "payment.events", fromBeginning: true });
     
@@ -32,7 +34,11 @@ export const connectKafkaConsumer = async () => {
           const event = JSON.parse(message.value.toString());
           console.log(`[Notification Service] Received Event: ${event.eventType} from topic ${topic}`);
           
-          if (event.eventType === "RIDE_REQUESTED") {
+          if (event.eventType === "USER_REGISTERED") {
+            await sendEmail(event.payload.email, "Welcome", "Welcome to FluxRide!");
+          } else if (event.eventType === "DRIVER_REGISTERED") {
+            await sendEmail(event.payload.userId, "Driver Application", "Your driver application is pending review.");
+          } else if (event.eventType === "RIDE_REQUESTED") {
             await sendEmail(event.payload.riderId, "Ride Requested", "Your ride has been successfully requested.");
           } else if (event.eventType === "RIDE_ACCEPTED") {
             await sendEmail(event.payload.riderId, "Ride Accepted", `Your ride has been accepted by driver ${event.payload.driverId}.`);
