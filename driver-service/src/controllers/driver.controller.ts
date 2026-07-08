@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
+import { publishEvent } from "../lib/kafka.js";
 
 export const registerDriver = async (req: Request, res: Response) => {
   try {
@@ -40,6 +41,12 @@ export const registerDriver = async (req: Request, res: Response) => {
         vehicleType,
         status: "PENDING", 
       },
+    });
+
+    await publishEvent("driver.events", "DRIVER_REGISTERED", {
+      driverId: driver.id,
+      userId: driver.userId,
+      vehicleType: driver.vehicleType,
     });
 
     res.status(201).json({
