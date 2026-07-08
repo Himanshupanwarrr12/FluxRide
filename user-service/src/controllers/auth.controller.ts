@@ -1,6 +1,18 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import { prisma } from "../lib/prisma.js"
+import jwt from "jsonwebtoken";
+import { prisma } from "../lib/prisma.js";
+import { publishEvent } from "../lib/kafka.js";
+
+const generateTokens = (user: { id: string, role: string }) => {
+  const secret = process.env.JWT_SECRET || "super_secret_jwt_key";
+  const refreshSecret = process.env.JWT_REFRESH_SECRET || "super_secret_refresh_key";
+  
+  const accessToken = jwt.sign({ id: user.id, role: user.role }, secret, { expiresIn: '15m' });
+  const refreshToken = jwt.sign({ id: user.id }, refreshSecret, { expiresIn: '7d' });
+  
+  return { accessToken, refreshToken };
+};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -35,9 +47,26 @@ export const register = async (req: Request, res: Response) => {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
+    const tokens = generateTokens(user);
+
+    await prisma.refreshToken.create({
+      data: {
+        token: tokens.refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    });
+
+    await publishEvent("user.events", "USER_REGISTERED", {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
+
     res.status(201).json({
       message: "User created successfully",
       user: userWithoutPassword,
+      tokens
     });
   } catch (error: unknown) {
     console.error("Register Error:", error);
@@ -66,9 +95,20 @@ export const login = async (req: Request, res: Response) => {
 
     const { password: _, ...userWithoutPassword } = user;
 
+    const tokens = generateTokens(user);
+
+    await prisma.refreshToken.create({
+      data: {
+        token: tokens.refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }
+    });
+
     res.status(200).json({
       message: "Login successful",
       user: userWithoutPassword,
+      tokens
     });
   } catch (error: unknown) {
     console.error("Login Error:", error);
