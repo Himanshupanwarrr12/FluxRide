@@ -10,8 +10,45 @@ export const kafka = new Kafka({
 
 let producer: Producer | null = null;
 
+export const initKafkaAdmin = async () => {
+  const admin = kafka.admin();
+  try {
+    await admin.connect();
+    console.log("User Service connected to Kafka Admin");
+
+    // Define topics for the Uber/Ola clone (User domain)
+    const topics = [
+      {
+        topic: "user-events", // e.g., user created, updated, deleted
+        numPartitions: 3,
+        replicationFactor: 1, // 1 for local dev, increase for production
+      }
+    ];
+
+    const existingTopics = await admin.listTopics();
+    const topicsToCreate = topics.filter(t => !existingTopics.includes(t.topic));
+
+    if (topicsToCreate.length > 0) {
+      await admin.createTopics({
+        topics: topicsToCreate,
+      });
+      console.log(`Created topics: ${topicsToCreate.map(t => t.topic).join(', ')}`);
+    } else {
+      console.log("All topics already exist.");
+    }
+  } catch (error) {
+    console.error("Failed to initialize Kafka Admin or create topics", error);
+  } finally {
+    await admin.disconnect();
+    console.log("Kafka Admin disconnected");
+  }
+};
+
 export const connectKafkaProducer = async () => {
   if (producer) return producer;
+  
+  // Ensure topics are created before producer connects
+  await initKafkaAdmin();
   
   producer = kafka.producer();
   try {
