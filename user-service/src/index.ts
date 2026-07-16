@@ -1,7 +1,7 @@
 import express from "express";
 import "dotenv/config";
 import authRoutes from "./routes/auth.routes.js";
-import { connectKafkaProducer, disconnectKafkaProducer } from "./lib/kafka.js";
+import { connectKafkaProducer, disconnectKafkaProducer } from "./services/kafka.service.js";
 
 const app = express();
 app.use(express.json());
