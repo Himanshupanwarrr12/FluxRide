@@ -12,7 +12,7 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   phone     String   @unique
-  password  String                      // bcrypt hashed, never plain text
+  password  String                      
   firstName String
   lastName  String
   role      Role     @default(RIDER)
@@ -30,7 +30,7 @@ model User {
   // Relations
   refreshTokens RefreshToken[]
 
-  @@map("users")           // actual table name in DB
+  @@map("users")           
 }
 
 model RefreshToken {
