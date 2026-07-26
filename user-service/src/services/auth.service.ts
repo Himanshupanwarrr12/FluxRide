@@ -1,11 +1,15 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { prisma } from "./prisma.service.js";
+import { prisma } from "../lib/prisma.js";
 import { publishEvent } from "./kafka.service.js";
 
 export const generateTokens = (user: { id: string, role: string }) => {
-  const secret = process.env.JWT_SECRET || "super_secret_jwt_key";
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || "super_secret_refresh_key";
+  const secret = process.env.JWT_SECRET ;
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
+
+  if (!secret || !refreshSecret){
+    throw new Error("JWT_SECRET or JWT_REFRESH_SECRET is not defined");
+  }
   
   const accessToken = jwt.sign({ id: user.id, role: user.role }, secret, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ id: user.id }, refreshSecret, { expiresIn: '7d' });
