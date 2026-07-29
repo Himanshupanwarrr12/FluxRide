@@ -1,39 +1,165 @@
-# AI Agent Context — FluxRide
+# Kafka Architecture
 
-This file provides essential context for any AI coding agent assisting with the FluxRide project.
+## Event-Driven Communication
 
-## Project Overview
-FluxRide is a microservices-based ride-sharing application built with event-driven architecture using Apache Kafka and Zookeeper. The backend consists of 5 independent services orchestrated via Docker Compose.
+FluxRide follows an event-driven architecture using Apache Kafka. Services should communicate through domain events rather than direct HTTP requests whenever possible.
 
-## Tech Stack & Conventions
-- **Language**: TypeScript (`module: "nodenext"`, `target: "esnext"`)
-- **Runtime Environment**: Node.js (with `tsx` for dev environment)
-- **Framework**: Express 5
-- **ORM**: Prisma (`v7.8.0`, but effectively Prisma 5 behavior).
-  - *Note*: We use `@prisma/adapter-pg` along with `pg` for connection pooling.
-  - The Prisma client is generated into `../src/generated/prisma`.
-- **Database**: PostgreSQL 15 (Shared db `fluxride_db` defined in `docker-compose.yaml`)
-- **Event Broker**: Apache Kafka (using `kafkajs`)
-- **Code Style**: Strict TypeScript, async/await, try/catch blocks for error handling, explicit status codes, consistent JSON response formatting.
+### Kafka Responsibilities
 
-## Microservices Architecture
+Each service is responsible for publishing events that originate from its own domain.
 
-| Service | Port | Status | Responsibilities |
-|---------|------|--------|------------------|
-| `user-service` | 3001 | Built | Auth (bcrypt), JWT, User Profile Management. Has its own `schema.prisma`. |
-| `driver-service` | 3002 | Built | Driver registration, vehicle details. Has its own `schema.prisma`. |
-| `ride-service` | TBD | Empty | Ride requests, matching, fare estimates, status tracking. |
-| `payment-service` | TBD | Empty | Transactions, invoices, payment gateway processing. |
-| `notification-service` | TBD | Empty | Consumes Kafka events to send SMS/Email alerts. |
+Examples:
 
-## Important Architectural Decisions
-1. **Isolated Databases**: Each service maintains its own Prisma schema and does not share tables natively. Connections between entities (e.g., Driver -> User) are made via generic ID references (`userId: String`).
-2. **Prisma Singleton Pattern**: Database connections must be pooled using the custom adapter in `src/lib/prisma.ts`. Do not instantiate raw `new PrismaClient()` in controllers to avoid connection limit exhaustion during development hot-reloading.
-3. **Inter-service Communication**: Services communicate asynchronously via Apache Kafka. No direct HTTP calls should be made between services unless strictly necessary for real-time synchronous data retrieval.
-4. **Environment Variables**: Every service relies on a `.env` file (not committed to git). `DATABASE_URL` is mandatory.
+- user-service → User lifecycle events
+- driver-service → Driver lifecycle events
+- ride-service → Ride lifecycle events
+- payment-service → Payment lifecycle events
+- notification-service → Consumes events from other services
 
-## Common Agent Tasks & Reminders
-- When scaffolding a new service, copy the established patterns from `user-service` and `driver-service` (e.g., `src/index.ts`, `src/lib/prisma.ts`).
-- When modifying a `schema.prisma`, remember to run `npx prisma generate`.
-- Do not add packages globally. Run `npm install` inside the specific service directory.
-- Check `tsconfig.json` carefully for module resolution errors when adding new file imports (ensure `.js` extensions are used in imports).
+---
+
+## Topic Naming Convention
+
+Topics must represent a business domain instead of individual actions.
+
+Examples:
+
+user.events
+driver.events
+ride.events
+payment.events
+notification.events
+
+Avoid creating topics like:
+
+signup
+login
+driver-created
+payment-success
+
+Those should be event names, not topic names.
+
+---
+
+## Event Naming Convention
+
+Events should always be written in UPPER_SNAKE_CASE.
+
+Examples:
+
+USER_CREATED
+USER_LOGGED_IN
+USER_PROFILE_UPDATED
+USER_DELETED
+
+DRIVER_REGISTERED
+DRIVER_VERIFIED
+
+RIDE_REQUESTED
+RIDE_ACCEPTED
+RIDE_STARTED
+RIDE_COMPLETED
+RIDE_CANCELLED
+
+PAYMENT_INITIATED
+PAYMENT_COMPLETED
+PAYMENT_FAILED
+
+---
+
+## Event Envelope
+
+Every Kafka message must follow the same structure.
+
+```ts
+{
+  event: "USER_CREATED",
+  version: 1,
+  timestamp: "...",
+  source: "user-service",
+  correlationId: "...",
+  data: {
+    // event payload
+  }
+}
+```
+
+Never publish raw database objects directly.
+
+---
+
+## Kafka Folder Structure
+
+Each service should keep Kafka-related code isolated.
+
+src/
+ └── kafka/
+      ├── kafka.service.ts
+      ├── producer.ts
+      ├── consumer.ts
+      ├── topics.ts
+      ├── events.ts
+      ├── eventPublisher.ts
+      └── types.ts
+
+Business services should never call KafkaJS directly.
+
+Instead use semantic methods like:
+
+publishUserCreated()
+publishRideRequested()
+publishPaymentCompleted()
+
+---
+
+## Design Principles
+
+- Kafka infrastructure must be separated from business logic.
+- Do not duplicate producer logic.
+- Keep topics centralized.
+- Keep event names centralized.
+- Use strong TypeScript types.
+- Implement graceful shutdown.
+- Retry transient failures.
+- Log publish failures.
+- Messages should be versioned for future compatibility.
+
+---
+
+## Service Boundaries
+
+Each service may only publish events belonging to its own domain.
+
+Example:
+
+user-service
+    ✅ USER_CREATED
+    ✅ USER_UPDATED
+
+    ❌ DRIVER_REGISTERED
+    ❌ RIDE_STARTED
+
+driver-service
+    ✅ DRIVER_REGISTERED
+
+    ❌ USER_CREATED
+
+ride-service
+    ✅ RIDE_REQUESTED
+    ✅ RIDE_COMPLETED
+
+    ❌ PAYMENT_COMPLETED
+
+This keeps ownership clear and avoids coupling between microservices.
+
+---
+
+## Future Compatibility
+
+When adding new Kafka events:
+
+1. Add the event constant.
+2. Add/update the payload type.
+3. Add a semantic publish method.
+4. Reuse the common event envelope.
+5. Avoid breaking existing event schemas. Prefer versioning over changing payloads.
