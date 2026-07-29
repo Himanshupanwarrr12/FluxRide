@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
-import { publishEvent } from "./kafka.service.js";
+import { publishUserCreated } from "../kafka/kafka.service.js";
 
 export const generateTokens = (user: { id: string, role: string }) => {
   const secret = process.env.JWT_SECRET ;
@@ -55,10 +55,13 @@ export const registerUser = async (data: any) => {
     }
   });
 
-  await publishEvent("user.events", "USER_REGISTERED", {
+  await publishUserCreated({
     userId: user.id,
     email: user.email,
-    role: user.role
+    phone: user.phone,
+    role: user.role,
+    firstName: user.firstName,
+    lastName: user.lastName,
   });
 
   return { user: userWithoutPassword, tokens };
