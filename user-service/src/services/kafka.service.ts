@@ -1,5 +1,4 @@
 import { Kafka, type Producer } from "kafkajs";
-import "dotenv/config";
 
 const KAFKA_BROKER = process.env.KAFKA_BROKER || "localhost:9092";
 
