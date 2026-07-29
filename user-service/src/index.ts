@@ -1,7 +1,7 @@
 import express from "express";
 import "dotenv/config";
 import authRoutes from "./routes/auth.routes.js";
-import { connectKafkaProducer, disconnectKafkaProducer } from "./services/kafka.service.js";
+import { initKafka, shutdownKafka } from "./kafka/kafka.service.js";
 
 const app = express();
 app.use(express.json());
@@ -17,7 +17,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 
 const startServer = async () => {
-  await connectKafkaProducer();
+  await initKafka();
 
   const server = app.listen(PORT, () => {
     console.log(`User Service running on port ${PORT}`);
@@ -25,7 +25,7 @@ const startServer = async () => {
 
   const shutdown = async () => {
     console.log("Shutting down gracefully...");
-    await disconnectKafkaProducer();
+    await shutdownKafka();
     server.close(() => {
       console.log("Closed out remaining connections");
       process.exit(0);
