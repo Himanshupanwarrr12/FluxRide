@@ -1,19 +1,18 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
-import { publishUserCreated } from "../kafka/kafka.service.js";
 
 export const generateTokens = (user: { id: string, role: string }) => {
-  const secret = process.env.JWT_SECRET ;
+  const secret = process.env.JWT_SECRET;
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
 
-  if (!secret || !refreshSecret){
+  if (!secret || !refreshSecret) {
     throw new Error("JWT_SECRET or JWT_REFRESH_SECRET is not defined");
   }
-  
+
   const accessToken = jwt.sign({ id: user.id, role: user.role }, secret, { expiresIn: '15m' });
   const refreshToken = jwt.sign({ id: user.id }, refreshSecret, { expiresIn: '7d' });
-  
+
   return { accessToken, refreshToken };
 };
 
@@ -53,15 +52,6 @@ export const registerUser = async (data: any) => {
       userId: user.id,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     }
-  });
-
-  await publishUserCreated({
-    userId: user.id,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-    firstName: user.firstName,
-    lastName: user.lastName,
   });
 
   return { user: userWithoutPassword, tokens };
