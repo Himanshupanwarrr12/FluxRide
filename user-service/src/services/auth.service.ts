@@ -68,6 +68,10 @@ export const loginUser = async (data: any) => {
     throw new Error("User not found");
   }
 
+  if (user.status === "DELETED") {
+    throw new Error("Account has been deleted");
+  }
+
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
@@ -89,16 +93,52 @@ export const loginUser = async (data: any) => {
   return { user: userWithoutPassword, tokens };
 };
 
-export const getUserProfile = async (id: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id },
-  });
-
-  if (!user) {
-    throw new Error("User not found");
+export const refreshTokenService = async (refreshToken: string) => {
+  const refreshSecret = process.env.JWT_REFRESH_SECRET;
+  if (!refreshSecret) {
+    throw new Error("JWT_REFRESH_SECRET is not defined");
   }
 
-  const { password: _, ...userWithoutPassword } = user;
+  const decoded = jwt.verify(refreshToken, refreshSecret) as { id: string };
 
-  return { user: userWithoutPassword };
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { token: refreshToken },
+    include: { user: true }
+  });
+
+  if (!storedToken || storedToken.isRevoked || storedToken.expiresAt < new Date()) {
+    throw new Error("Invalid or expired refresh token");
+  }
+
+  if (storedToken.user.status === "DELETED") {
+    throw new Error("Account has been deleted");
+  }
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined");
+  }
+
+  const accessToken = jwt.sign(
+    { id: storedToken.user.id, role: storedToken.user.role },
+    secret,
+    { expiresIn: '15m' }
+  );
+
+  return { accessToken };
+};
+
+export const logoutUser = async (refreshToken: string) => {
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { token: refreshToken }
+  });
+
+  if (storedToken) {
+    await prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: { isRevoked: true }
+    });
+  }
+
+  return { message: "Logged out successfully" };
 };
