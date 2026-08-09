@@ -1,6 +1,7 @@
 import express from "express";
 import "dotenv/config";
 import authRoutes from "./routes/auth.routes.js";
+import userRoutes from "./routes/user.routes.js";
 
 const app = express();
 app.use(express.json());
@@ -14,6 +15,7 @@ app.get("/health", (req, res) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 const startServer = async () => {
   const server = app.listen(PORT, () => {
