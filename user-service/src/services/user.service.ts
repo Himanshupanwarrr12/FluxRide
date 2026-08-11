@@ -9,8 +9,7 @@ export const getUserProfileById = async (id: string) => {
     throw new Error("User not found");
   }
 
-  const { password: _, ...userWithoutPassword } = user;
-  return { user: userWithoutPassword };
+  return { user };
 };
 
 export const updateUserProfile = async (
@@ -43,8 +42,7 @@ export const updateUserProfile = async (
     },
   });
 
-  const { password: _, ...userWithoutPassword } = updatedUser;
-  return { user: userWithoutPassword };
+  return { user: updatedUser };
 };
 
 export const softDeleteUserAccount = async (id: string) => {
