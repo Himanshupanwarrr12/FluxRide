@@ -1,9 +1,26 @@
 import { Router } from "express";
-import { registerDriver, getDriverProfile } from "../controllers/driver.controller.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
+import {
+  registerDriver,
+  addDriverVehicle,
+  setAvailability,
+  updateLocation,
+  nearbyDrivers,
+  getOwnProfile,
+  getDriverByIdHandler,
+} from "../controllers/driver.controller.js";
 
 const router = Router();
 
-router.post("/register", registerDriver);
-router.get("/profile/:id", getDriverProfile);
+// Public routes
+router.get("/nearby", nearbyDrivers);
+router.get("/:id", getDriverByIdHandler);
+
+// Protected routes (JWT required)
+router.post("/register", authenticate, registerDriver);
+router.post("/vehicle", authenticate, addDriverVehicle);
+router.put("/availability", authenticate, setAvailability);
+router.put("/location", authenticate, updateLocation);
+router.get("/profile", authenticate, getOwnProfile);
 
 export default router;
