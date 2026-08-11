@@ -34,6 +34,15 @@ services:
     depends_on:
       - zookeeper
 
+  redis:
+    image: redis:7-alpine
+    container_name: fluxride-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
   ride-service:
     build:
       context: ./ride-service
@@ -73,3 +82,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
