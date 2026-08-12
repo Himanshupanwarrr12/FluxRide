@@ -7,14 +7,13 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
-  id        String   @id @default(uuid())
-  email     String?  @unique
-  phone     String?  @unique
+  id        String     @id @default(uuid())
+  email     String?    @unique
+  phone     String?    @unique
   firstName String
   lastName  String
-  role      Role     @default(RIDER)
+  role      Role       @default(RIDER)
   status    UserStatus @default(ACTIVE)
 
   // Auth related
@@ -22,14 +21,39 @@ model User {
   isPhoneVerified Boolean @default(false)
 
   // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
   // Relations
   refreshTokens RefreshToken[]
 
-  @@map("users")           
+  @@map("users")
+}
+
+model Otp {
+  id         String     @id @default(uuid())
+  identifier String // normalized email or phone
+  otpHash    String // bcrypt hash — NEVER store plaintext
+  purpose    OtpPurpose
+  attempts   Int        @default(0)
+  isVerified Boolean    @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime   @default(now())
+
+  @@index([identifier, purpose])
+  @@map("otps")
+}
+
+model RegistrationToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  identifier String   @unique
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("registration_tokens")
 }
 
 model RefreshToken {
@@ -42,6 +66,12 @@ model RefreshToken {
   isRevoked Boolean  @default(false)
 
   @@map("refresh_tokens")
+}
+
+enum OtpPurpose {
+  LOGIN_OR_SIGNUP
+  ADD_PHONE
+  ADD_EMAIL
 }
 
 enum Role {
