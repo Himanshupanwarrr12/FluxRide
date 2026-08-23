@@ -112,9 +112,9 @@ export const completeSignupHandler = async (req: Request, res: Response): Promis
   }
 };
 
-export const requestAddContactHandler = async (req: AuthRequest, res: Response): Promise<void> => {
+export const requestAddContactHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as AuthRequest).user?.id;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
@@ -143,9 +143,9 @@ export const requestAddContactHandler = async (req: AuthRequest, res: Response):
   }
 };
 
-export const verifyAddContactHandler = async (req: AuthRequest, res: Response): Promise<void> => {
+export const verifyAddContactHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as AuthRequest).user?.id;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
