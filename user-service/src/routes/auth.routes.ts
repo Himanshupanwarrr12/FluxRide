@@ -21,7 +21,6 @@ router.post("/complete-signup", completeSignupHandler);
 router.post("/phone/add/request", authenticate, requestAddContactHandler);
 router.post("/phone/add/verify", authenticate, verifyAddContactHandler);
 
-// Token management (unchanged)
 router.post("/refresh", refresh);
 router.post("/logout", logout);
 
