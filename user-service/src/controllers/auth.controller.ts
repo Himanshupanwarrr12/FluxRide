@@ -15,7 +15,7 @@ export const requestOtpHandler = async (req: Request, res: Response): Promise<vo
     const { identifier, purpose } = req.body;
 
     if (!identifier) {
-      res.status(400).json({ message: "Identifier (email or phone) is required" });
+      res.status(400).json({ message: "email or phone is required" });
       return;
     }
 
