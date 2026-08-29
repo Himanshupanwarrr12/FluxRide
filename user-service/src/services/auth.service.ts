@@ -4,10 +4,6 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type OtpPurpose = "LOGIN_OR_SIGNUP" | "ADD_PHONE" | "ADD_EMAIL";
 
 interface OtpData {
@@ -33,18 +29,10 @@ const cooldownKey = (purpose: OtpPurpose, type: "email" | "phone", identifier: s
 const registrationKey = (token: string) =>
   `registration:${token}`;
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const OTP_TTL_SECONDS = 300;        // 5 minutes
 const COOLDOWN_TTL_SECONDS = 60;    // 1 minute
 const MAX_OTP_ATTEMPTS = 5;
 const REGISTRATION_TTL_SECONDS = 900; // 15 minutes
-
-// ---------------------------------------------------------------------------
-// Helpers (not exported)
-// ---------------------------------------------------------------------------
 
 /**
  * Detect identifier type and normalize.
@@ -56,7 +44,6 @@ const normalizeIdentifier = (raw: string): { identifier: string; type: "email" |
   if (trimmed.includes("@")) {
     return { identifier: trimmed.toLowerCase(), type: "email" };
   }
-  // Phone: keep digits and leading '+'
   let phone = trimmed.replace(/[^\d+]/g, "");
   if (!phone.startsWith("+")) {
     phone = `+${phone}`;
@@ -76,10 +63,6 @@ const sendOtpNotification = (identifier: string, otp: string, type: "email" | "p
   }
 };
 
-// ---------------------------------------------------------------------------
-// Token generation (unchanged)
-// ---------------------------------------------------------------------------
-
 export const generateTokens = (user: { id: string, role: string }) => {
   const secret = process.env.JWT_SECRET;
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
@@ -94,13 +77,6 @@ export const generateTokens = (user: { id: string, role: string }) => {
   return { accessToken, refreshToken };
 };
 
-// ---------------------------------------------------------------------------
-// OTP flow
-// ---------------------------------------------------------------------------
-
-/**
- * Send a one-time password to the given identifier.
- */
 export const sendOtp = async (
   rawIdentifier: string,
   purpose: OtpPurpose = "LOGIN_OR_SIGNUP"
