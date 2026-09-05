@@ -4,7 +4,6 @@ import {
   registerDriver,
   addDriverVehicle,
   setAvailability,
-  updateLocation,
   nearbyDrivers,
   getOwnProfile,
   getDriverByIdHandler,
@@ -20,7 +19,7 @@ router.get("/:id", getDriverByIdHandler);
 router.post("/register", authenticate, registerDriver);
 router.post("/vehicle", authenticate, addDriverVehicle);
 router.put("/availability", authenticate, setAvailability);
-router.put("/location", authenticate, updateLocation);
+// Location updates are now handled via WebSocket at ws://host:3002/location
 router.get("/profile", authenticate, getOwnProfile);
 
 export default router;
