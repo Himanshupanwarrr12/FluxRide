@@ -1,4 +1,6 @@
 import express from "express";
+import { createServer } from "http";
+import { WebSocketServer } from "ws";
 import "dotenv/config";
 import driverRoutes from "./routes/driver.routes.js";
 import { connectProducer, disconnectProducer } from "./kafka/producer.js";
@@ -6,6 +8,7 @@ import { connectConsumer, subscribeAndRun, disconnectConsumer } from "./kafka/co
 import { TOPICS } from "./kafka/topics.js";
 import { handleRideEvent } from "./services/ride.service.js";
 import { connectRedis, disconnectRedis } from "./lib/redis.js";
+import { handleLocationStream } from "./websocket/location.ws.js";
 
 const app = express();
 app.use(express.json());
@@ -34,8 +37,21 @@ const startServer = async () => {
     await handleRideEvent(raw);
   });
 
-  const server = app.listen(PORT, () => {
+  // Create HTTP server from Express app
+  const server = createServer(app);
+
+  // Attach WebSocket server on /location path
+  const wss = new WebSocketServer({ server, path: "/location" });
+
+  wss.on("connection", handleLocationStream);
+
+  wss.on("error", (err) => {
+    console.error("[WSS] WebSocket server error:", err.message);
+  });
+
+  server.listen(PORT, () => {
     console.log(`Driver Service running on port ${PORT}`);
+    console.log(`WebSocket server listening on ws://localhost:${PORT}/location`);
   });
 
   const shutdown = async () => {
@@ -43,6 +59,13 @@ const startServer = async () => {
     await disconnectConsumer();
     await disconnectProducer();
     await disconnectRedis();
+
+    // Close all WebSocket connections
+    wss.clients.forEach((client) => {
+      client.close(1001, "Server shutting down");
+    });
+    wss.close();
+
     server.close(() => {
       console.log("Closed out remaining connections");
       process.exit(0);
