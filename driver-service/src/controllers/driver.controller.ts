@@ -4,7 +4,6 @@ import {
   registerDriverProfile,
   addVehicle,
   toggleAvailability,
-  updateDriverLocation,
   getNearbyDrivers,
   getDriverByUserId,
   getDriverById,
@@ -123,39 +122,7 @@ export const setAvailability = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
-// PUT /api/drivers/location
-export const updateLocation = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    const { latitude, longitude } = req.body as { latitude?: number; longitude?: number };
-    if (latitude === undefined || longitude === undefined) {
-      res.status(400).json({ message: "latitude and longitude are required" });
-      return;
-    }
-
-    const { driver: driverRecord } = await getDriverByUserId(userId);
-    const result = await updateDriverLocation(driverRecord.id, latitude, longitude);
-
-    res.status(200).json(result);
-  } catch (error: unknown) {
-    console.error("[updateLocation]", error);
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    if (msg === "Driver not found") {
-      res.status(404).json({ message: msg });
-      return;
-    }
-    if (msg.includes("must be online")) {
-      res.status(400).json({ message: msg });
-      return;
-    }
-    res.status(500).json({ message: "Internal server error", error: msg });
-  }
-};
+// NOTE: Location updates are now handled via WebSocket (see src/websocket/location.ws.ts)
 
 // GET /api/drivers/nearby
 export const nearbyDrivers = async (req: Request, res: Response): Promise<void> => {
