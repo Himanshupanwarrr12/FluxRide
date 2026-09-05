@@ -13,6 +13,7 @@ model Driver {
   licenseNumber String       @unique
   status        DriverStatus @default(OFFLINE)
   rating        Float        @default(0.0)
+  lastSeenAt    DateTime?    // Updated on every location message; null = never seen
 
   // Timestamps
   createdAt DateTime @default(now())
