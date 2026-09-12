@@ -16,10 +16,6 @@ interface RegistrationData {
   identifierType: "email" | "phone";
 }
 
-// ---------------------------------------------------------------------------
-// Redis key builders
-// ---------------------------------------------------------------------------
-
 const otpKey = (purpose: OtpPurpose, type: "email" | "phone", identifier: string) =>
   `otp:${purpose}:${type}:${identifier}`;
 
@@ -34,11 +30,7 @@ const COOLDOWN_TTL_SECONDS = 60;    // 1 minute
 const MAX_OTP_ATTEMPTS = 5;
 const REGISTRATION_TTL_SECONDS = 900; // 15 minutes
 
-/**
- * Detect identifier type and normalize.
- * Emails: lowercase + trim.
- * Phones: strip everything except digits and leading '+', ensure '+' prefix.
- */
+
 const normalizeIdentifier = (raw: string): { identifier: string; type: "email" | "phone" } => {
   const trimmed = raw.trim();
   if (trimmed.includes("@")) {
@@ -114,9 +106,7 @@ export const sendOtp = async (
   return { message: "OTP sent successfully", identifierType: type };
 };
 
-/**
- * Verify an OTP and either log the user in or return a registration token.
- */
+
 export const verifyOtp = async (
   rawIdentifier: string,
   otp: string,
@@ -218,9 +208,7 @@ export const verifyOtp = async (
   };
 };
 
-/**
- * Complete signup for a new user who has already verified their OTP.
- */
+
 export const completeSignup = async (
   registrationToken: string,
   firstName: string,
@@ -269,10 +257,7 @@ export const completeSignup = async (
   return { user, tokens };
 };
 
-/**
- * Request an OTP to add a new contact (phone or email) to an existing account.
- * Protected route — userId comes from JWT, not the client.
- */
+
 export const requestAddContact = async (userId: string, rawIdentifier: string) => {
   const { identifier, type } = normalizeIdentifier(rawIdentifier);
 
@@ -295,10 +280,7 @@ export const requestAddContact = async (userId: string, rawIdentifier: string) =
   return sendOtp(rawIdentifier, purpose);
 };
 
-/**
- * Verify OTP and add a new contact to the authenticated user's account.
- * Protected route — userId comes from JWT, not the client.
- */
+
 export const verifyAddContact = async (
   userId: string,
   rawIdentifier: string,
@@ -361,10 +343,6 @@ export const verifyAddContact = async (
 
   return { success: true };
 };
-
-// ---------------------------------------------------------------------------
-// Refresh / Logout (unchanged)
-// ---------------------------------------------------------------------------
 
 export const refreshTokenService = async (refreshToken: string) => {
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
