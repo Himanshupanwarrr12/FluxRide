@@ -52,7 +52,6 @@ const normalizeIdentifier = (raw: string): { identifier: string; type: "email" |
 };
 
 /**
- * Dev-only notification abstraction.
  * // TODO: wire up real provider (Twilio / SendGrid / etc.)
  */
 const sendOtpNotification = (identifier: string, otp: string, type: "email" | "phone"): void => {
