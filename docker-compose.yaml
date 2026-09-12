@@ -69,6 +69,80 @@ services:
       - postgres
       - kafka
 
+  user-db:
+    image: postgres:15-alpine
+    container_name: fluxride-user-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user_db
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  user-service:
+    build:
+      context: ./user-service
+    container_name: fluxride-user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:postgres@user-db:5432/user_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=#Bexon12
+      - JWT_REFRESH_SECRET=super_secret_refresh_key
+      - NODE_ENV=production
+    depends_on:
+      user-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  driver-db:
+    image: postgres:15-alpine
+    container_name: fluxride-driver-db
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: driver_db
+    volumes:
+      - driver_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d driver_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  driver-service:
+    build:
+      context: ./driver-service
+    container_name: fluxride-driver-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DATABASE_URL=postgresql://postgres:postgres@driver-db:5432/driver_db?schema=public
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BROKER=kafka:9092
+      - JWT_SECRET=your_jwt_secret_here
+      - NODE_ENV=production
+    depends_on:
+      driver-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_started
+
   notification-service:
     build:
       context: ./notification-service
@@ -83,3 +157,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  user_db_data:
+  driver_db_data:
