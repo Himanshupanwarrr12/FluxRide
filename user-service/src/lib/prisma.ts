@@ -1,42 +1,44 @@
 import { PrismaClient } from "../generated/prisma/client.js"
 import { PrismaPg } from "@prisma/adapter-pg";
+import { databaseUrl, poolConfig } from "../config/db.config.js";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 }
 
-const connectionString = process.env.DATABASE_URL
-
-if (!connectionString) {
-  throw new Error("Database_URL enviroment is not set");
-}
-
 const adapter = new PrismaPg({
-  connectionString,
-  max:20,
-  idleTimeoutMillis:60000,
-  connectionTimeoutMillis:30000
+  connectionString: databaseUrl,
+  ...poolConfig,
 })
 
-let prisma : PrismaClient
- 
+let prisma: PrismaClient;
+
 if (process.env.NODE_ENV === 'production') {
-  // Production: create new instance
   prisma = new PrismaClient({ adapter });
 } else {
-  // Development: reuse instance to prevent too many connections
   if (!globalForPrisma.prisma) {
     globalForPrisma.prisma = new PrismaClient({ 
       adapter,
-      log: ['query', 'error', 'warn'], // Log queries in development
+      log: ['query', 'error', 'warn'],
     });
   }
   prisma = globalForPrisma.prisma;
 }
 
-// shutdown
+export const connectDatabase = async (): Promise<void> => {
+  try {
+    await prisma.$connect();
+    console.log("[Database] Connected to PostgreSQL");
+  } catch (error) {
+    console.error("[Database] Failed to connect to PostgreSQL:", error);
+    throw error;
+  }
+};
+
+// Graceful shutdown
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
 });
 
-export {prisma}
+export { prisma };
+
