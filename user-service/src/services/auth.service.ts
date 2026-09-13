@@ -126,19 +126,17 @@ export const verifyOtp = async (
 
   // Max 5 attempts
   if (otpData.attempts >= MAX_OTP_ATTEMPTS) {
-    // Delete the key — OTP is now invalid
     await redis.del(key);
     throw new Error("Maximum OTP attempts exceeded. Please request a new OTP");
   }
 
-  // Compare against bcrypt hash
   const isValid = await bcrypt.compare(otp, otpData.otpHash);
 
   if (!isValid) {
     // Increment attempt counter in Redis
     otpData.attempts += 1;
     // Preserve remaining TTL
-    const ttl = await redis.ttl(key);
+    const ttl = await redis.ttl(key); 
     if (ttl > 0) {
       await redis.set(key, JSON.stringify(otpData), { EX: ttl });
     }
