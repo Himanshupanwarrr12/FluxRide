@@ -98,7 +98,8 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=#Bexon12
       - JWT_REFRESH_SECRET=super_secret_refresh_key
-      - NODE_ENV=production
+      - NODE_ENV=development
+    command: sh -c "npx prisma migrate deploy && npm start"
     depends_on:
       user-db:
         condition: service_healthy
@@ -134,7 +135,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:9092
       - JWT_SECRET=your_jwt_secret_here
-      - NODE_ENV=production
+      - NODE_ENV=development
     depends_on:
       driver-db:
         condition: service_healthy
