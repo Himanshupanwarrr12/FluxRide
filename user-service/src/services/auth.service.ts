@@ -343,6 +343,7 @@ export const verifyAddContact = async (
 };
 
 export const refreshTokenService = async (refreshToken: string) => {
+
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
   if (!refreshSecret) {
     throw new Error("JWT_REFRESH_SECRET is not defined");
