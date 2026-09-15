@@ -21,7 +21,7 @@ router.post("/complete-signup", completeSignupHandler);
 router.post("/phone/add/request", authenticate, requestAddContactHandler);
 router.post("/phone/add/verify", authenticate, verifyAddContactHandler);
 
-router.post("/refresh", refresh);
+router.post("/token/refresh", refresh);
 router.post("/logout", logout);
 
 export default router;
