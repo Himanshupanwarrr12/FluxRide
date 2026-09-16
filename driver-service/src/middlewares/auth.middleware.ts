@@ -16,7 +16,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
       return;
     }
 
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim().replace(/^["']|["']$/g, "");
     if (!token) {
       res.status(401).json({ message: "Malformed token" });
       return;
@@ -27,7 +27,10 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     req.user = decoded;
 
     next();
-  } catch {
-    res.status(401).json({ message: "Invalid or expired token" });
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Invalid or expired token";
+    console.error("[Auth] Token verification failed:", errorMsg);
+    res.status(401).json({ message: "Invalid or expired token", error: errorMsg });
   }
 };
+
