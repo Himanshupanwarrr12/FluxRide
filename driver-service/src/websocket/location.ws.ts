@@ -22,6 +22,7 @@ interface LocationMessage {
 interface JwtPayload {
   id: string;
   role: string;
+  currentMode: string;
 }
 
 interface WsOutgoing {
