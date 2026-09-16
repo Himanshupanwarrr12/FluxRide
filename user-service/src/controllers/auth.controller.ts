@@ -8,6 +8,7 @@ import {
   verifyAddContact,
   refreshTokenService,
   logoutUser,
+  switchMode,
 } from "../services/auth.service.js";
 
 export const requestOtpHandler = async (req: Request, res: Response): Promise<void> => {
@@ -84,14 +85,14 @@ export const verifyOtpHandler = async (req: Request, res: Response): Promise<voi
 
 export const completeSignupHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { registrationToken, firstName, lastName, role } = req.body;
+    const { registrationToken, firstName, lastName } = req.body;
 
     if (!registrationToken || !firstName || !lastName) {
       res.status(400).json({ message: "Registration token, firstName, and lastName are required" });
       return;
     }
 
-    const result = await completeSignup(registrationToken, firstName, lastName, role);
+    const result = await completeSignup(registrationToken, firstName, lastName);
     res.status(201).json({
       message: "Account created successfully",
       user: result.user,
@@ -208,5 +209,41 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     console.error("Logout Error:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     res.status(500).json({ message: "Internal server error", error: errorMessage });
+  }
+};
+
+export const switchModeHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as AuthRequest).user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const { targetMode } = req.body;
+    if (!targetMode || !["RIDER", "DRIVER"].includes(targetMode)) {
+      res.status(400).json({ message: "targetMode must be RIDER or DRIVER" });
+      return;
+    }
+
+    const result = await switchMode(userId, targetMode);
+    res.status(200).json({
+      message: `Switched to ${targetMode} mode`,
+      user: result.user,
+      tokens: result.tokens,
+    });
+  } catch (error: any) {
+    console.error("Switch Mode Error:", error);
+    const msg = error instanceof Error ? error.message : "An unknown error occurred";
+    if (
+      msg.includes("Already in") ||
+      msg.includes("Driver profile not found") ||
+      msg.includes("No vehicle registered") ||
+      msg.includes("Cannot switch")
+    ) {
+      res.status(400).json({ message: msg });
+      return;
+    }
+    res.status(500).json({ message: "Internal server error", error: msg });
   }
 };
