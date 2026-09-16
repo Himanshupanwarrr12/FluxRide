@@ -5,6 +5,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     role: string;
+    currentMode: string;
   };
 }
 
@@ -23,7 +24,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     }
 
     const secret = process.env.JWT_SECRET ?? "super_secret_jwt_key";
-    const decoded = jwt.verify(token, secret) as { id: string; role: string };
+    const decoded = jwt.verify(token, secret) as { id: string; role: string; currentMode: string };
     req.user = decoded;
 
     next();
@@ -34,3 +35,18 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
+/**
+ * Middleware factory that enforces the user's currentMode matches the expected mode.
+ * Usage: router.post("/register", authenticate, requireMode("DRIVER"), registerDriver);
+ */
+export const requireMode = (mode: "RIDER" | "DRIVER") => {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (req.user?.currentMode !== mode) {
+      res.status(403).json({
+        message: `This action requires ${mode} mode. Current mode: ${req.user?.currentMode ?? "unknown"}`,
+      });
+      return;
+    }
+    next();
+  };
+};
