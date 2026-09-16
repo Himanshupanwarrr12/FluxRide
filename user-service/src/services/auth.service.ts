@@ -54,7 +54,7 @@ const sendOtpNotification = (identifier: string, otp: string, type: "email" | "p
   }
 };
 
-export const generateTokens = (user: { id: string, role: string }) => {
+export const generateTokens = (user: { id: string; role: string; currentMode: string }) => {
   const secret = process.env.JWT_SECRET;
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
 
@@ -62,7 +62,11 @@ export const generateTokens = (user: { id: string, role: string }) => {
     throw new Error("JWT_SECRET or JWT_REFRESH_SECRET is not defined");
   }
 
-  const accessToken = jwt.sign({ id: user.id, role: user.role }, secret, { expiresIn: '15m' });
+  const accessToken = jwt.sign(
+    { id: user.id, role: user.role, currentMode: user.currentMode },
+    secret,
+    { expiresIn: '15m' }
+  );
   const refreshToken = jwt.sign({ id: user.id }, refreshSecret, { expiresIn: '7d' });
 
   return { accessToken, refreshToken };
@@ -211,7 +215,6 @@ export const completeSignup = async (
   registrationToken: string,
   firstName: string,
   lastName: string,
-  role?: "RIDER" | "DRIVER"
 ) => {
   const key = registrationKey(registrationToken);
 
@@ -226,6 +229,8 @@ export const completeSignup = async (
   // Trust only the identifier stored in Redis — never client-sent
   const { identifier, identifierType: type } = regData;
 
+  // All new users start as RIDER with currentMode = RIDER.
+  // Driver capability is acquired later via the Driver Service.
   const user = await prisma.user.create({
     data: {
       ...(type === "email"
@@ -233,7 +238,8 @@ export const completeSignup = async (
         : { phone: identifier, isPhoneVerified: true }),
       firstName,
       lastName,
-      role: role || "RIDER",
+      role: "RIDER",
+      currentMode: "RIDER",
       lastLoginAt: new Date(),
     },
   });
@@ -370,7 +376,11 @@ export const refreshTokenService = async (refreshToken: string) => {
   }
 
   const accessToken = jwt.sign(
-    { id: storedToken.user.id, role: storedToken.user.role },
+    {
+      id: storedToken.user.id,
+      role: storedToken.user.role,
+      currentMode: storedToken.user.currentMode,
+    },
     secret,
     { expiresIn: '15m' }
   );
@@ -391,4 +401,78 @@ export const logoutUser = async (refreshToken: string) => {
   }
 
   return { message: "Logged out successfully" };
+};
+
+/**
+ * Switch the user's application mode between RIDER and DRIVER.
+ *
+ * Safety checks:
+ *  - RIDER → DRIVER: requires a valid Driver profile (checked via driver-service DB)
+ *                     and at least one registered vehicle.
+ *  - DRIVER → RIDER: blocked when the driver's availability status is ON_RIDE.
+ *  - Switching mode does NOT change driver.status (ONLINE/OFFLINE/ON_RIDE).
+ */
+export const switchMode = async (userId: string, targetMode: "RIDER" | "DRIVER") => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (user.currentMode === targetMode) {
+    throw new Error(`Already in ${targetMode} mode`);
+  }
+
+  if (targetMode === "DRIVER") {
+    // Verify driver capability via HTTP call to driver-service.
+    // In a monorepo with shared DB access we can query directly, but to
+    // respect service boundaries we call the driver-service REST API.
+    const driverServiceUrl = process.env.DRIVER_SERVICE_URL || "http://driver-service:3002";
+    const resp = await fetch(`${driverServiceUrl}/api/drivers/internal/user/${userId}`);
+
+    if (!resp.ok) {
+      throw new Error("Driver profile not found. Register as a driver first.");
+    }
+
+    const data = (await resp.json()) as {
+      driver: { id: string; status: string };
+      vehicles: unknown[];
+    };
+
+    if (!data.vehicles || data.vehicles.length === 0) {
+      throw new Error("No vehicle registered. Add a vehicle before switching to Driver mode.");
+    }
+  }
+
+  if (user.currentMode === "DRIVER" && targetMode === "RIDER") {
+    // Check if the driver is currently on a ride — block the switch.
+    const driverServiceUrl = process.env.DRIVER_SERVICE_URL || "http://driver-service:3002";
+    const resp = await fetch(`${driverServiceUrl}/api/drivers/internal/user/${userId}`);
+
+    if (resp.ok) {
+      const data = (await resp.json()) as { driver: { status: string } };
+      if (data.driver.status === "ON_RIDE") {
+        throw new Error("Cannot switch to Rider mode while on an active ride.");
+      }
+    }
+  }
+
+  // Persist mode change
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { currentMode: targetMode },
+  });
+
+  // Issue fresh tokens with the new mode
+  const tokens = generateTokens(updatedUser);
+
+  // Store new refresh token
+  await prisma.refreshToken.create({
+    data: {
+      token: tokens.refreshToken,
+      userId: updatedUser.id,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  return { user: updatedUser, tokens };
 };
