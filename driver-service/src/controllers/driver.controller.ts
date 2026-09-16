@@ -199,3 +199,25 @@ export const getDriverByIdHandler = async (req: Request, res: Response): Promise
     res.status(500).json({ message: "Internal server error", error: msg });
   }
 };
+
+// GET /api/drivers/internal/user/:userId  (internal — called by user-service)
+export const getDriverByUserIdHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params as { userId?: string };
+    if (!userId) {
+      res.status(400).json({ message: "userId is required" });
+      return;
+    }
+
+    const result = await getDriverByUserId(userId);
+    res.status(200).json(result);
+  } catch (error: unknown) {
+    console.error("[getDriverByUserIdHandler]", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg === "Driver not found") {
+      res.status(404).json({ message: msg });
+      return;
+    }
+    res.status(500).json({ message: "Internal server error", error: msg });
+  }
+};
