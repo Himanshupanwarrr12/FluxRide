@@ -6,6 +6,7 @@ import driverRoutes from "./routes/driver.routes.js";
 import { connectProducer, disconnectProducer } from "./kafka/producer.js";
 import { connectConsumer, subscribeAndRun, disconnectConsumer } from "./kafka/consumer.js";
 import { TOPICS } from "./kafka/topics.js";
+import { initKafkaTopics } from "./kafka/kafka.service.js";
 import { handleRideEvent } from "./services/ride.service.js";
 import { connectRedis, disconnectRedis } from "./lib/redis.js";
 import { handleLocationStream } from "./websocket/location.ws.js";
@@ -15,20 +16,21 @@ app.use(express.json());
 
 const PORT = process.env.PORT ?? 3002;
 
-// Health Check
+// Health Check 
 app.get("/health", (_req, res) => {
   res.json({ service: "driver-service", status: "ok" });
 });
 
-// Routes
 app.use("/api/drivers", driverRoutes);
 
 const startServer = async () => {
-  // Connect Redis
   await connectRedis();
 
   // Connect Kafka Producer
   await connectProducer();
+
+  // Ensure required Kafka topics exist
+  await initKafkaTopics();
 
   // Connect Kafka Consumer & subscribe to ride.events
   await connectConsumer("driver-service-group");
