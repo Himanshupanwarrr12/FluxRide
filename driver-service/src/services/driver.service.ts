@@ -155,7 +155,10 @@ export const getDriverByUserId = async (userId: string) => {
   });
 
   if (!driver) throw new Error("Driver not found");
-  return { driver };
+
+  // Normalize vehicle to an array (schema is 1:1, but the API expects an array)
+  const vehicles = driver.vehicle ? [driver.vehicle] : [];
+  return { driver, vehicles };
 };
 
 // ── Get Driver By ID (internal) ──────────────────────────────────────────────
