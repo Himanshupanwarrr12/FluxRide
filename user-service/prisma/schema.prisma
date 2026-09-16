@@ -13,8 +13,9 @@ model User {
   phone     String?    @unique
   firstName String
   lastName  String
-  role      Role       @default(RIDER)
-  status    UserStatus @default(ACTIVE)
+  role        Role       @default(RIDER)
+  currentMode AppMode    @default(RIDER)
+  status      UserStatus @default(ACTIVE)
 
   // Auth related
   isEmailVerified Boolean @default(false)
@@ -84,4 +85,9 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   DELETED
+}
+
+enum AppMode {
+  RIDER
+  DRIVER
 }
