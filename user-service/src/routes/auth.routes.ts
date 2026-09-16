@@ -7,6 +7,7 @@ import {
   verifyAddContactHandler,
   refresh,
   logout,
+  switchModeHandler,
 } from "../controllers/auth.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 
@@ -23,5 +24,8 @@ router.post("/phone/add/verify", authenticate, verifyAddContactHandler);
 
 router.post("/token/refresh", refresh);
 router.post("/logout", logout);
+
+// Mode switching (protected)
+router.post("/switch-mode", authenticate, switchModeHandler);
 
 export default router;
