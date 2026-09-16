@@ -97,6 +97,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=#Bexon12
       - JWT_REFRESH_SECRET=super_secret_refresh_key
+      - DRIVER_SERVICE_URL=http://driver-service:3002
       - NODE_ENV=development
     command: sh -c "npx prisma migrate deploy && npm start"
     depends_on:
