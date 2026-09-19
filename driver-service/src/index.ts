@@ -1,6 +1,6 @@
 import express from "express";
 import { createServer } from "http";
-import { WebSocketServer } from "ws";
+import { Server } from "socket.io";
 import "dotenv/config";
 import driverRoutes from "./routes/driver.routes.js";
 import { connectProducer, disconnectProducer } from "./kafka/producer.js";
@@ -9,7 +9,7 @@ import { TOPICS } from "./kafka/topics.js";
 import { initKafkaTopics } from "./kafka/kafka.service.js";
 import { handleRideEvent } from "./services/ride.service.js";
 import { connectRedis, disconnectRedis } from "./lib/redis.js";
-import { handleLocationStream } from "./websocket/location.ws.js";
+import { setupLocationSocket } from "./websocket/location.ws.js";
 
 const app = express();
 app.use(express.json());
@@ -42,18 +42,17 @@ const startServer = async () => {
   // Create HTTP server from Express app
   const server = createServer(app);
 
-  // Attach WebSocket server on /location path
-  const wss = new WebSocketServer({ server, path: "/location" });
-
-  wss.on("connection", handleLocationStream);
-
-  wss.on("error", (err) => {
-    console.error("[WSS] WebSocket server error:", err.message);
+  // Attach Socket.IO server on /location path
+  const io = new Server(server, {
+    path: "/location",
+    cors: { origin: "*" },
   });
+
+  setupLocationSocket(io);
 
   server.listen(PORT, () => {
     console.log(`Driver Service running on port ${PORT}`);
-    console.log(`WebSocket server listening on ws://localhost:${PORT}/location`);
+    console.log(`Socket.IO server listening on http://localhost:${PORT}/location`);
   });
 
   const shutdown = async () => {
@@ -62,11 +61,11 @@ const startServer = async () => {
     await disconnectProducer();
     await disconnectRedis();
 
-    // Close all WebSocket connections
-    wss.clients.forEach((client) => {
-      client.close(1001, "Server shutting down");
+    // Close all Socket.IO connections and stop server
+    io.disconnectSockets(true);
+    await new Promise<void>((resolve) => {
+      io.close(() => resolve());
     });
-    wss.close();
 
     server.close(() => {
       console.log("Closed out remaining connections");
