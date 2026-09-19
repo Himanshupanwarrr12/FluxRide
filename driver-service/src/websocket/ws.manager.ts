@@ -1,22 +1,22 @@
-import { WebSocket } from "ws";
+import type { Socket } from "socket.io";
 
 // ── Active Driver Connections ────────────────────────────────────────────────
-// Maps driverId → WebSocket so other services (e.g., Ride Service) can push
+// Maps driverId → Socket so other services (e.g., Ride Service) can push
 // messages directly to a specific driver in real time.
 
-export const activeDrivers = new Map<string, WebSocket>();
+export const activeDrivers = new Map<string, Socket>();
 
 /**
- * Register a driver's WebSocket connection.
+ * Register a driver's Socket.IO connection.
  * Replaces any existing connection for the same driver.
  */
-export const register = (driverId: string, ws: WebSocket): void => {
-  activeDrivers.set(driverId, ws);
+export const register = (driverId: string, socket: Socket): void => {
+  activeDrivers.set(driverId, socket);
   console.log(`[WS Manager] Driver ${driverId} registered (total: ${activeDrivers.size})`);
 };
 
 /**
- * Unregister a driver's WebSocket connection.
+ * Unregister a driver's Socket.IO connection.
  */
 export const unregister = (driverId: string): void => {
   activeDrivers.delete(driverId);
@@ -24,23 +24,24 @@ export const unregister = (driverId: string): void => {
 };
 
 /**
- * Send a JSON payload to a specific driver's WebSocket.
+ * Send a JSON payload to a specific driver's socket.
  * Useful for Ride Service to push ride requests to a driver.
  */
 export const notifyDriver = (driverId: string, payload: object): void => {
-  const ws = activeDrivers.get(driverId);
+  const socket = activeDrivers.get(driverId);
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
+  if (socket && socket.connected) {
+    socket.emit("notification", payload);
   } else {
     console.warn(`[WS Manager] Cannot notify driver ${driverId}: not connected`);
   }
 };
 
 /**
- * Check whether a driver has an active, open WebSocket connection.
+ * Check whether a driver has an active, open Socket.IO connection.
  */
 export const isConnected = (driverId: string): boolean => {
-  const ws = activeDrivers.get(driverId);
-  return ws !== undefined && ws.readyState === WebSocket.OPEN;
+  const socket = activeDrivers.get(driverId);
+  return socket !== undefined && socket.connected;
 };
+
