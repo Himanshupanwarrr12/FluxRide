@@ -18,7 +18,8 @@ graph TB
         UDB[("🐘 User DB :5433<br/>(PostgreSQL 15)")]
         DDB[("🐘 Driver DB :5434<br/>(PostgreSQL 15)")]
         PDB[("🐘 Shared DB :5432<br/>(Ride & Payment)")]
-        RDS[("⚡ Redis 7 :6379<br/>(Cache & Geospatial)")]
+        URDS[("⚡ User Redis :6379<br/>(OTP & Auth Tokens)")]
+        DRDS[("⚡ Driver Redis :6380<br/>(Geospatial & LastSeen)")]
         KF["📨 Apache Kafka :9092/:9094<br/>(KRaft Mode)"]
     end
 
@@ -35,10 +36,10 @@ graph TB
     Client -->|HTTP REST| RS
 
     US --> UDB
-    US --> RDS
+    US --> URDS
 
     DS --> DDB
-    DS --> RDS
+    DS --> DRDS
     DS <-->|Pub/Sub Events| KF
 
     RS --> PDB
@@ -79,13 +80,14 @@ Defined in [`docker-compose.yaml`](./docker-compose.yaml):
 | `fluxride-user-db` | `postgres:15-alpine` | `5433` | Dedicated database for `user-service` (`user_db`) |
 | `fluxride-driver-db` | `postgres:15-alpine` | `5434` | Dedicated database for `driver-service` (`driver_db`) |
 | `fluxride-postgres` | `postgres:15-alpine` | `5432` | Shared database for `ride-service` and `payment-service` |
-| `fluxride-redis` | `redis:7-alpine` | `6379` | Fast in-memory cache & geospatial indexing for live driver locations |
+| `fluxride-user-redis` | `redis:7-alpine` | `6379` | Dedicated Redis for `user-service` (OTP, registration tokens, auth data) |
+| `fluxride-driver-redis` | `redis:7-alpine` | `6380` | Dedicated Redis for `driver-service` (geospatial live driver locations, lastSeen) |
 | `fluxride-kafka` | `apache/kafka:latest` | `9092`, `9094` | KRaft-mode event broker (`9092` internal Docker, `9094` host access) |
 | `fluxride-user-service` | `./user-service` | `3001` | Authentication and user profile service |
 | `fluxride-driver-service` | `./driver-service` | `3002` | Driver onboarding, vehicle registration, location tracking |
 | `fluxride-ride-service` | `./ride-service` | `3003` | Ride booking and lifecycle matching |
 
-Persistent Docker volumes are configured for databases (`user_db_data`, `driver_db_data`, `postgres_data`, `redis_data`) so data persists across restarts.
+Persistent Docker volumes are configured for databases (`user_db_data`, `driver_db_data`, `postgres_data`, `user_redis_data`, `driver_redis_data`) so data persists across restarts.
 
 ---
 
@@ -203,7 +205,7 @@ docker compose up -d --build user-service driver-service
 
 This will automatically:
 1. Start `user-db` (port 5433) and `driver-db` (port 5434).
-2. Start `redis` (port 6379) and `kafka` (ports 9092, 9094).
+2. Start `user-redis` (port 6379), `driver-redis` (port 6380), and `kafka` (ports 9092, 9094).
 3. Apply pending Prisma migrations automatically on startup (`prisma migrate deploy`).
 4. Initialize required Kafka topics (`driver.events`, `ride.events`).
 5. Launch `user-service` on `http://localhost:3001` and `driver-service` on `http://localhost:3002`.
