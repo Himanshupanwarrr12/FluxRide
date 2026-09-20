@@ -1,7 +1,7 @@
 import { Redis } from "ioredis";
 import "dotenv/config";
 
-const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
+const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6380";
 
 const globalForRedis = globalThis as unknown as { redis: Redis | undefined };
 
