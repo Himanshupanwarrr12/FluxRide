@@ -1,18 +1,102 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: fluxride-postgres
+  # ── User Domain
+  user-service:
+    build:
+      context: ./user-service
+    container_name: fluxride-user-service
     ports:
-      - "5432:5432"
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:postgres@user-db:5432/user_db?schema=public
+      - REDIS_URL=redis://user-redis:6379
+      - JWT_SECRET=#Bexon12
+      - JWT_REFRESH_SECRET=super_secret_refresh_key
+      - DRIVER_SERVICE_URL=http://driver-service:3002
+      - NODE_ENV=development
+    command: sh -c "npx prisma migrate deploy && npm start"
+    depends_on:
+      user-db:
+        condition: service_healthy
+      user-redis:
+        condition: service_started
+
+  user-db:
+    image: postgres:15-alpine
+    container_name: fluxride-user-db
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: fluxride_db
+      POSTGRES_DB: user_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - user_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d user_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  user-redis:
+    image: redis:7-alpine
+    container_name: fluxride-user-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - user_redis_data:/data
+    command: redis-server --appendonly yes
+
+  # ── Driver Domain 
+  driver-service:
+    build:
+      context: ./driver-service
+    container_name: fluxride-driver-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DATABASE_URL=postgresql://postgres:postgres@driver-db:5432/driver_db?schema=public
+      - REDIS_URL=redis://driver-redis:6379
+      - KAFKA_BROKER=kafka:9092
+      - JWT_SECRET=#Bexon12
+      - NODE_ENV=development
+    command: sh -c "npx prisma migrate deploy && npm start"
+    depends_on:
+      driver-db:
+        condition: service_healthy
+      driver-redis:
+        condition: service_started
+      kafka:
+        condition: service_started
+
+  driver-db:
+    image: postgres:15-alpine
+    container_name: fluxride-driver-db
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: driver_db
+    volumes:
+      - driver_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d driver_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  driver-redis:
+    image: redis:7-alpine
+    container_name: fluxride-driver-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - driver_redis_data:/data
+    command: redis-server --appendonly yes
+
+  # ── Messaging Infrastructure - Driver Service
   kafka:
     image: apache/kafka:latest
     container_name: fluxride-kafka
@@ -33,131 +117,8 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
 
-  redis:
-    image: redis:7-alpine
-    container_name: fluxride-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-
-  ride-service:
-    build:
-      context: ./ride-service
-    container_name: fluxride-ride-service
-    ports:
-      - "3003:3003"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fluxride_rides?schema=public
-      - KAFKA_BROKER=kafka:9092
-    depends_on:
-      - postgres
-      - kafka
-
-  payment-service:
-    build:
-      context: ./payment-service
-    container_name: fluxride-payment-service
-    ports:
-      - "3004:3004"
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fluxride_db?schema=public
-      - KAFKA_BROKER=kafka:9092
-    depends_on:
-      - postgres
-      - kafka
-
-  user-db:
-    image: postgres:15-alpine
-    container_name: fluxride-user-db
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: user_db
-    volumes:
-      - user_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  user-service:
-    build:
-      context: ./user-service
-    container_name: fluxride-user-service
-    ports:
-      - "3001:3001"
-    environment:
-      - PORT=3001
-      - DATABASE_URL=postgresql://postgres:postgres@user-db:5432/user_db?schema=public
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=#Bexon12
-      - JWT_REFRESH_SECRET=super_secret_refresh_key
-      - DRIVER_SERVICE_URL=http://driver-service:3002
-      - NODE_ENV=development
-    command: sh -c "npx prisma migrate deploy && npm start"
-    depends_on:
-      user-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-  driver-db:
-    image: postgres:15-alpine
-    container_name: fluxride-driver-db
-    ports:
-      - "5434:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: driver_db
-    volumes:
-      - driver_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d driver_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  driver-service:
-    build:
-      context: ./driver-service
-    container_name: fluxride-driver-service
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - DATABASE_URL=postgresql://postgres:postgres@driver-db:5432/driver_db?schema=public
-      - REDIS_URL=redis://redis:6379
-      - KAFKA_BROKER=kafka:9092
-      - JWT_SECRET=#Bexon12
-      - NODE_ENV=development
-    command: sh -c "npx prisma migrate deploy && npm start"
-    depends_on:
-      driver-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      kafka:
-        condition: service_started
-
-  notification-service:
-    build:
-      context: ./notification-service
-    container_name: fluxride-notification-service
-    ports:
-      - "3005:3005"
-    environment:
-      - KAFKA_BROKER=kafka:9092
-    depends_on:
-      - kafka
-
 volumes:
-  postgres_data:
-  redis_data:
   user_db_data:
+  user_redis_data:
   driver_db_data:
+  driver_redis_data:
