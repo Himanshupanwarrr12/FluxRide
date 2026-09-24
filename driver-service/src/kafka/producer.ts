@@ -4,9 +4,10 @@ import { kafka } from "./kafka.service.js";
 let producer: Producer | null = null;
 
 export const connectProducer = async (): Promise<Producer> => {
-  if (producer) return producer;
 
+  if (producer) return producer;
   producer = kafka.producer();
+
   try {
     await producer.connect();
     console.log("[Kafka] Driver Service producer connected");
