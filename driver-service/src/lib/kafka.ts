@@ -12,7 +12,7 @@ let producer: Producer | null = null;
 
 export const connectKafkaProducer = async () => {
   if (producer) return producer;
-  
+
   producer = kafka.producer();
   try {
     await producer.connect();
@@ -20,7 +20,7 @@ export const connectKafkaProducer = async () => {
   } catch (error) {
     console.error("Failed to connect Kafka Producer", error);
   }
-  
+
   return producer;
 };
 
