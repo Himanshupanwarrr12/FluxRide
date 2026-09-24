@@ -18,63 +18,66 @@ const PORT = process.env.PORT ?? 3002;
 
 // Health Check 
 app.get("/health", (_req, res) => {
-  res.json({ service: "driver-service", status: "ok" });
+    res.json({ service: "driver-service", status: "ok" });
 });
 
 app.use("/api/drivers", driverRoutes);
 
 const startServer = async () => {
-  await connectRedis();
 
-  // Connect Kafka Producer
-  await connectProducer();
+    // Connect Redis
+    await connectRedis();
 
-  // Ensure required Kafka topics exist
-  await initKafkaTopics();
+    // Connect Kafka Producer
+    await connectProducer();
 
-  // Connect Kafka Consumer & subscribe to ride.events
-  await connectConsumer("driver-service-group");
-  await subscribeAndRun(TOPICS.RIDE_EVENTS, async ({ message }) => {
-    const raw = message.value?.toString() ?? null;
-    await handleRideEvent(raw);
-  });
+    // Ensure required Kafka topics exist
+    await initKafkaTopics();
 
-  // Create HTTP server from Express app
-  const server = createServer(app);
-
-  // Attach Socket.IO server on /location path
-  const io = new Server(server, {
-    path: "/location",
-    cors: { origin: "*" },
-  });
-
-  setupLocationSocket(io);
-
-  server.listen(PORT, () => {
-    console.log(`Driver Service running on port ${PORT}`);
-    console.log(`Socket.IO server listening on http://localhost:${PORT}/location`);
-  });
-
-  const shutdown = async () => {
-    console.log("Shutting down gracefully...");
-    await disconnectConsumer();
-    await disconnectProducer();
-    await disconnectRedis();
-
-    // Close all Socket.IO connections and stop server
-    io.disconnectSockets(true);
-    await new Promise<void>((resolve) => {
-      io.close(() => resolve());
+    // Connect Kafka Consumer & subscribe to ride.events
+    await connectConsumer("driver-service-group");
+    await subscribeAndRun(TOPICS.RIDE_EVENTS, async ({ message }) => {
+        const raw = message.value?.toString() ?? null;
+        await handleRideEvent(raw);
     });
 
-    server.close(() => {
-      console.log("Closed out remaining connections");
-      process.exit(0);
-    });
-  };
+    // Create HTTP server from Express app
+    const server = createServer(app);
 
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+    // Attach Socket.IO server on /location path
+    const io = new Server(server, {
+        path: "/location",
+        cors: { origin: "*" },
+    });
+
+    setupLocationSocket(io);
+
+    server.listen(PORT, () => {
+        console.log(`Driver Service running on port ${PORT}`);
+        console.log(`Socket.IO server listening on http://localhost:${PORT}/location`);
+    });
+
+    const shutdown = async () => {
+        console.log("Shutting down gracefully...");
+        await disconnectConsumer();
+        await disconnectProducer();
+        await disconnectRedis();
+
+        // Close all Socket.IO connections and stop server
+        io.disconnectSockets(true);
+        await new Promise<void>((resolve) => {
+            io.close(() => resolve());
+        });
+
+        server.close(() => {
+            console.log("Closed out remaining connections");
+            process.exit(0);
+        });
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
 };
 
 startServer();
+
