@@ -26,11 +26,12 @@ redis = globalForRedis.redis;
 
 export const connectRedis = async (): Promise<void> => {
   await redis.connect();
+  console.log("Redis Connected")
 };
 
 export const disconnectRedis = async (): Promise<void> => {
   await redis.quit();
-  console.log("[Redis] Disconnected");
+  console.log("Redis Disconnected");
 };
 
 export { redis };
